@@ -135,7 +135,7 @@ class BatchController(object):
 
     .. attribute:: terminal_output
 
-        (bool) - If ``paralllel`` is False, this controls where
+        (bool) - If ``parallel`` is False, this controls where
         the output is sent.  If True then it will simply use stdout, if False
         then the usual log file will be used.  ``default = False``.
 

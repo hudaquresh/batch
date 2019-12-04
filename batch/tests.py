@@ -7,7 +7,7 @@ import unittest
 
 import batch
 
-class TestJob(batch.job):
+class TestJob(batch.Job):
 
     def __init__(self, test_param):
 
