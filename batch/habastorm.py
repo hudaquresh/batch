@@ -14,10 +14,13 @@ import os
 import glob
 import subprocess
 
+import time 
+import pdb  
+
 import batch
 
 
-class HabaneroJob(batch.Job):
+class HabaneroStormJob(batch.Job):
     r"""
     Modifications to the basic :class:`batch.Job` class for Habanero runs
 
@@ -27,13 +30,13 @@ class HabaneroJob(batch.Job):
         r"""
         Initialize Habanero job
 
-        See :class:`HabaneroJob` for full documentation
+        See :class:`HabaneroStormJob` for full documentation
         """
 
-        super(HabaneroJob, self).__init__()
+        super(HabaneroStormJob, self).__init__()
 
         # Add extra job parameters
-        self.omp_num_threads = 1
+        self.omp_num_threads = 24
         self.mic_omp_num_threads = 1
         self.mic_affinity = "none"
         self.time = "12:00:00"
@@ -41,7 +44,7 @@ class HabaneroJob(batch.Job):
         self.queue = "serial"
 
 
-class HabaneroBatchController(batch.BatchController):
+class HabaneroStormBatchController(batch.BatchController):
     r"""
     Modifications to the basic batch controller for Habanero runs
 
@@ -57,10 +60,10 @@ class HabaneroBatchController(batch.BatchController):
         r"""
         Initialize Habanero batch controller
 
-        See :class:`HabaneroBatchController` for full documentation
+        See :class:`HabaneroStormBatchController` for full documentation
         """
 
-        super(HabaneroBatchController, self).__init__(jobs)
+        super(HabaneroStormBatchController, self).__init__(jobs)
 
         # Habanero specific execution controls
         self.email = None
@@ -134,37 +137,108 @@ class HabaneroBatchController(batch.BatchController):
                                                     restart,
                                                     data_path)
 
+            plot_cmd = "%s %s %s %s \n" % (self.plotclaw_cmd,
+                                            output_path,
+                                            plots_path, 
+                                            job.setplot) 
+
+            gauge_max_program = os.path.join(self.base_path, "process-scripts", "get_gauge_max.py")  
+            gauge_cmd = "python %s %s %s %s %s \n" %(gauge_max_program, output_path, self.base_path, job.name, job.prefix)  
+
+            #remove_cmd = "rm -rf %s %s %s %s\n" %(output_path, plots_path, log_path, run_script_path)   
+            remove_cmd = "rm -rf %s %s %s %s\n" %(output_path, plots_path, data_path, run_script_path)   
+
             # Write slurm run script
             run_script = open(run_script_path, 'w')
 
             run_script.write("#!/bin/sh\n")
-            run_script.write("#SBATCH --account apam        # Job account\n")
-            run_script.write("#SBATCH -J %s        # Job name\n" % job.prefix)
-            run_script.write("#SBATCH -o %s        # Job name\n" % log_path)
-            run_script.write("#SBATCH -n 1         # Total number of MPI tasks requested\n")
-            run_script.write("#SBATCH -N 1         # Total number of MPI tasks requested\n")
-            run_script.write("#SBATCH -p %s               # queue\n" % job.queue)
-            run_script.write("#SBATCH -t 1:00:00             # run time (hh:mm:ss)\n")
+            run_script.write("#SBATCH --account apam         # Job account\n")
+            run_script.write("#SBATCH -J %s                  # Job name\n" % job.prefix)
+            run_script.write("#SBATCH -o %s                  # Job log \n" % log_path)
+            run_script.write("#SBATCH -n 1                   # Total number of MPI tasks requested\n")
+            run_script.write("#SBATCH -N 1                   # Total number of MPI tasks requested\n")
+            run_script.write("#SBATCH -p %s                  # queue\n" % job.queue)
+            run_script.write("#SBATCH -t 10:30:00             # run time (hh:mm:ss)\n")
             if self.email is not None:
                 run_script.write("#SBATCH --mail-user=%s \n" % self.email )
-                run_script.write("#SBATCH --mail-type=begin       # email me when the job starts\n")
-                run_script.write("#SBATCH --mail-type=end         # email me when the job finishes\n")
+                #run_script.write("#SBATCH --mail-type=begin       # email me when the job starts\n")
+                #run_script.write("#SBATCH --mail-type=end         # email me when the job finishes\n")
             run_script.write("\n")
             run_script.write("# OpenMP controls\n")
             run_script.write("export OMP_NUM_THREADS=%s\n" % job.omp_num_threads)
-            run_script.write("export MIC_ENV_PREFIX=MIC \n")
-            run_script.write("export MIC_OMP_NUM_THREADS=%s\n" % job.mic_omp_num_threads)
-            run_script.write("export MIC_KMP_AFFINITY=%s\n" % job.mic_affinity)
+            #run_script.write("export MIC_ENV_PREFIX=MIC \n")
+            #run_script.write("export MIC_OMP_NUM_THREADS=%s\n" % job.mic_omp_num_threads)
+            #run_script.write("export MIC_KMP_AFFINITY=%s\n" % job.mic_affinity)
             run_script.write("\n")
+            run_script.write("make .exe # Construct executable \n")
+            run_script.write("\n") 
             run_script.write("# Run command\n")
             run_script.write(run_cmd)
+            run_script.write("\n") 
+            run_script.write("# Plot command\n")
+            run_script.write(plot_cmd)
+            run_script.write("\n")  
+            run_script.write("# Extract Maximum Surge \n") 
+            run_script.write(gauge_cmd)
+            run_script.write("\n")
+            #run_script.write("# Remove output files \n") 
+            #run_script.write(remove_cmd)  
 
             run_script.close()
-
+            
+            
             # Submit job to queue
             subprocess.Popen("sbatch %s > %s" % (run_script_path, log_path),
                                                  shell=True).wait()
+            
 
         # -- All jobs have been started --
+            
+    
 
-        return paths
+    def process(self): 
+        
+        num_jobs = len(self.jobs)
+        job = self.jobs[0] 
+        process_script_name = ''.join((job.name, "_process.sh"))
+        process_script_dir = os.path.join(self.base_path, "MaxSurge") 
+        process_script_path = os.path.join(process_script_dir, process_script_name)
+        process_script_log = ''.join((job.name, "_process", "_log.txt"))
+        process_script_log_path = os.path.join(process_script_dir, process_script_log)
+       
+
+        if not os.path.exists(process_script_dir): 
+            os.mkdir(process_script_dir) 
+
+        return_period_program = os.path.join(self.base_path, "return_period.py") 
+        process_cmd = "python %s %s %s %s" %(return_period_program,  
+                                             self.base_path,
+                                             job.name,
+                                             process_script_dir)   
+         
+        
+        # Write slurm run script to collect and process all max gauge data 
+        process_script = open(process_script_path, 'w')
+
+        process_script.write("#!/bin/sh\n")
+        process_script.write("#SBATCH --account apam        # Job account\n"      )
+        process_script.write("#SBATCH -J ProcessMaxGauges   # Job name\n"         )     
+        process_script.write("#SBATCH -c 10"                                      )
+        process_script.write("#SBATCH -t 1:30:00             # run time\n"        )  
+        process_script.write("#SBATCH --mem-per-cpu=15gb     # memory/cpu core\n" )
+        process_script.write("#SBATCH --nodes=1              # nodes needed\n "   )
+        if self.email is not None:
+            process_script.write("#SBATCH --mail-user=%s \n" % self.email )
+            process_script.write("#SBATCH --mail-type=begin       # email me when the job starts\n")
+            process_script.write("#SBATCH --mail-type=end         # email me when the job finishes\n")
+        process_script.write("# Run command\n")
+        process_script.write(process_cmd)
+        process_script.write("\n") 
+
+        process_script.close()
+        
+            
+        # Submit job to queue
+        subprocess.Popen("sbatch %s > %s" % (process_script_path, process_script_log_path),
+                                                 shell=True).wait()
+

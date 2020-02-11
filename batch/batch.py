@@ -86,8 +86,8 @@ class Job(object):
         
 
     def __str__(self):
-        output = "Job %s: %s\n" % (self.name,self.prefix)
-        output += "  Setplot: %s\n" % self.setplot
+        output = "   Job %s  : %s\n" % (self.name,self.prefix)
+        output += "  Setplot : %s\n" % self.setplot
         return output
     
         
