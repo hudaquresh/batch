@@ -86,8 +86,10 @@ class Job(object):
         
 
     def __str__(self):
-        output = "   Job %s  : %s\n" % (self.name,self.prefix)
-        output += "  Setplot : %s\n" % self.setplot
+        output = "{:<20}{:<1}{:<15}{:<1}".format("Job %s" %self.name, ": ", "%s" %self.prefix,"\n")
+        output += "{:<20}{:<1}{:<15}{:<1}".format("Setplot", ": ", "%s" %self.setplot,"\n")
+        #output = "   Job %s  : %s\n" % (self.name,self.prefix)
+        #output += "  Setplot : %s\n" % self.setplot
         return output
     
         

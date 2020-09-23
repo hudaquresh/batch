@@ -1,4 +1,4 @@
-r"""Batch sub-classes for runs on the Columbia Habanero machine"""
+r"""Batch sub-classes for geoclaw storm runs on the Columbia Habanero machine"""
 
 # ============================================================================
 #      Copyright (C) 2017 Kyle Mandli <kyle.mandli@columbia.edu>
@@ -144,7 +144,7 @@ class HabaneroStormBatchController(batch.BatchController):
 
             gauge_max_program = os.path.join(self.base_path, "process-scripts", "get_gauge_max.py")  
             gauge_cmd = "python %s %s %s %s %s \n" %(gauge_max_program, output_path, self.base_path, job.name, job.prefix)  
-
+            
             #remove_cmd = "rm -rf %s %s %s %s\n" %(output_path, plots_path, log_path, run_script_path)   
             remove_cmd = "rm -rf %s %s %s %s\n" %(output_path, plots_path, data_path, run_script_path)   
 
@@ -166,17 +166,18 @@ class HabaneroStormBatchController(batch.BatchController):
             run_script.write("\n")
             run_script.write("# OpenMP controls\n")
             run_script.write("export OMP_NUM_THREADS=%s\n" % job.omp_num_threads)
-            #run_script.write("export MIC_ENV_PREFIX=MIC \n")
-            #run_script.write("export MIC_OMP_NUM_THREADS=%s\n" % job.mic_omp_num_threads)
-            #run_script.write("export MIC_KMP_AFFINITY=%s\n" % job.mic_affinity)
+            run_script.write("export MIC_ENV_PREFIX=MIC \n")
+            run_script.write("export MIC_OMP_NUM_THREADS=%s\n" % job.mic_omp_num_threads)
+            run_script.write("export MIC_KMP_AFFINITY=%s\n" % job.mic_affinity)
             run_script.write("\n")
             run_script.write("make .exe # Construct executable \n")
             run_script.write("\n") 
             run_script.write("# Run command\n")
             run_script.write(run_cmd)
-            run_script.write("\n") 
-            run_script.write("# Plot command\n")
-            run_script.write(plot_cmd)
+            run_script.write("\n")
+            if int(job.prefix) == 0:  
+                run_script.write("# Plot command\n")
+                run_script.write(plot_cmd)
             run_script.write("\n")  
             run_script.write("# Extract Maximum Surge \n") 
             run_script.write(gauge_cmd)

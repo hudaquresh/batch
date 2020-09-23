@@ -133,6 +133,10 @@ class HabaneroBatchController(batch.BatchController):
                                                     overwrite,
                                                     restart,
                                                     data_path)
+            plot_cmd = "%s %s %s %s \n" % (self.plotclaw_cmd,
+                                            output_path,
+                                            plots_path, 
+                                            job.setplot) 
 
             # Write slurm run script
             run_script = open(run_script_path, 'w')
@@ -144,7 +148,7 @@ class HabaneroBatchController(batch.BatchController):
             run_script.write("#SBATCH -n 1         # Total number of MPI tasks requested\n")
             run_script.write("#SBATCH -N 1         # Total number of MPI tasks requested\n")
             run_script.write("#SBATCH -p %s               # queue\n" % job.queue)
-            run_script.write("#SBATCH -t 1:00:00             # run time (hh:mm:ss)\n")
+            run_script.write("#SBATCH -t 8:00:00             # run time (hh:mm:ss)\n")
             if self.email is not None:
                 run_script.write("#SBATCH --mail-user=%s \n" % self.email )
                 run_script.write("#SBATCH --mail-type=begin       # email me when the job starts\n")
@@ -158,6 +162,9 @@ class HabaneroBatchController(batch.BatchController):
             run_script.write("\n")
             run_script.write("# Run command\n")
             run_script.write(run_cmd)
+            run_script.write("\n")
+            run_script.write("# Plot command\n")
+            run_script.write(plot_cmd)
 
             run_script.close()
 
